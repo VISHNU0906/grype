@@ -73,6 +73,10 @@ func FindResultsByCPEs(vulnProvider vulnerability.Provider, p pkg.Package, upstr
 			searchVersion = cpeversion.JVM(searchVersion, c.Attributes.Update)
 		}
 
+		if c.Attributes.Vendor == "imagemagick" && c.Attributes.Product == "imagemagick" {
+			searchVersion = cpeversion.ImageMagick(searchVersion)
+		}
+
 		var verObj *version.Version
 		var err error
 		if searchVersion != "" {

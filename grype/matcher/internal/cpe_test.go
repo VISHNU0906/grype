@@ -1271,3 +1271,90 @@ func TestMatchPackageByCPEs_IgnoreFilters(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchPackageByCPEs_ImageMagickPatchLevel(t *testing.T) {
+	store := mock.VulnerabilityProvider(
+		vulnerability.Vulnerability{
+			Reference: vulnerability.Reference{
+				ID:        "CVE-2023-5341",
+				Namespace: "nvd:cpe",
+			},
+			PackageName: "imagemagick",
+			Constraint:  version.MustGetConstraint("< 7.1.2", version.UnknownFormat),
+			CPEs:        []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:*:*:*:*:*:*:*:*", "")},
+		},
+	)
+
+	tests := []struct {
+		name        string
+		p           pkg.Package
+		shouldMatch bool
+	}{
+		{
+			name: "ImageMagick 7.1.2-34 should NOT match < 7.1.2 (patch level higher)",
+			p: pkg.Package{
+				Name:    "imagemagick",
+				Version: "7.1.2-34",
+				Type:    syftPkg.HomebrewPkg,
+				CPEs:    []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:7.1.2-34:*:*:*:*:*:*:*", "")},
+			},
+			shouldMatch: false,
+		},
+		{
+			name: "ImageMagick 7.1.2-1 should NOT match < 7.1.2 (patch level higher)",
+			p: pkg.Package{
+				Name:    "imagemagick",
+				Version: "7.1.2-1",
+				Type:    syftPkg.HomebrewPkg,
+				CPEs:    []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:7.1.2-1:*:*:*:*:*:*:*", "")},
+			},
+			shouldMatch: false,
+		},
+		{
+			name: "ImageMagick 7.1.1 should match < 7.1.2",
+			p: pkg.Package{
+				Name:    "imagemagick",
+				Version: "7.1.1",
+				Type:    syftPkg.HomebrewPkg,
+				CPEs:    []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:7.1.1:*:*:*:*:*:*:*", "")},
+			},
+			shouldMatch: true,
+		},
+		{
+			name: "ImageMagick 7.1.1-19 should match < 7.1.2",
+			p: pkg.Package{
+				Name:    "imagemagick",
+				Version: "7.1.1-19",
+				Type:    syftPkg.HomebrewPkg,
+				CPEs:    []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:7.1.1-19:*:*:*:*:*:*:*", "")},
+			},
+			shouldMatch: true,
+		},
+		{
+			name: "ImageMagick 7.1.2 should NOT match < 7.1.2",
+			p: pkg.Package{
+				Name:    "imagemagick",
+				Version: "7.1.2",
+				Type:    syftPkg.HomebrewPkg,
+				CPEs:    []cpe.CPE{cpe.Must("cpe:2.3:a:imagemagick:imagemagick:7.1.2:*:*:*:*:*:*:*", "")},
+			},
+			shouldMatch: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			matches, _, err := MatchPackageByCPEs(store, test.p, match.StockMatcher)
+			require.NoError(t, err)
+
+			if test.shouldMatch {
+				assert.NotEmpty(t, matches, "expected match but got none")
+				if len(matches) > 0 {
+					assert.Equal(t, "CVE-2023-5341", matches[0].Vulnerability.ID)
+				}
+			} else {
+				assert.Empty(t, matches, "expected no match but got %d matches", len(matches))
+			}
+		})
+	}
+}

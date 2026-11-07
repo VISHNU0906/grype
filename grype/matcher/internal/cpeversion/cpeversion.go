@@ -29,6 +29,33 @@ func Alpine(version string) string {
 	return version
 }
 
+// ImageMagick converts the -N patch-level suffix to +N build metadata. ImageMagick uses
+// MAJOR.MINOR.PATCH-PATCHLEVEL versioning where -N is a patch level counter (e.g., 7.1.2-34 is
+// the 34th release after 7.1.2). Without conversion, -34 is treated as a semver pre-release,
+// making 7.1.2-34 sort before 7.1.2. Converting to +34 preserves the intent: 7.1.2+34 sorts
+// after 7.1.2 as build metadata.
+func ImageMagick(version string) string {
+	if idx := strings.LastIndex(version, "-"); idx != -1 {
+		suffix := version[idx+1:]
+		if isNumeric(suffix) {
+			return version[:idx] + "+" + suffix
+		}
+	}
+	return version
+}
+
+func isNumeric(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // JVM folds a CPE's update field into its version. Pre-JEP-223 releases split a version across both
 // fields: 1.8.0_351 appears as version "1.8.0" with update "update351", and comparing the version
 // alone would place it before every update of the same release. Anything else is returned unchanged.
